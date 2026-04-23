@@ -73,26 +73,37 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-        "*** YOUR CODE HERE ***"
-        from util import manhattanDistance
-        foodMin = 0
-        ghostMin = 0
-        for food in newFood.asList():
-            foodDist = manhattanDistance(newPos, food)
-            if foodDist == 0:
-                foodMin = 666
-                break
-            foodMin += 1 / foodDist
-        for ghost in newGhostStates:
-            ghostDist = manhattanDistance(newPos, ghost.configuration.getPosition())
-            if ghostDist < 2:
-                ghostMin = 999
-                break
-            ghostMin += 1 / ghostDist
-        # print(foodMin, "\n", ghostMin, "\n", foodMin - ghostMin, "\n")
-        return 100 * foodMin - ghostMin
+        # Handle immediate win/loss states
+        if successorGameState.isWin():
+            return float('inf')
+        if successorGameState.isLose():
+            return float('-inf')
 
-        return successorGameState.getScore()
+        # Evaluate food proximity
+        foodList = newFood.asList()
+        if foodList:
+            nearestFoodDist = min([manhattanDistance(newPos, food) for food in foodList])
+            foodScore = 10.0 / nearestFoodDist
+        else:
+            foodScore = 0
+
+        # Evaluate ghost threats
+        ghostScore = 0
+        for i, ghostState in enumerate(newGhostStates):
+            ghostPos = ghostState.getPosition()
+            ghostDist = manhattanDistance(newPos, ghostPos)
+            
+            if newScaredTimes[i] > 0:
+                # Scared ghost - treat as opportunity
+                ghostScore += 200.0 / (ghostDist + 1)
+            else:
+                # Normal ghost - penalize proximity heavily
+                if ghostDist < 2:
+                    return -500
+                ghostScore -= 10.0 / (ghostDist + 1)
+
+        # Combine all factors
+        return successorGameState.getScore() + foodScore + ghostScore
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -153,7 +164,24 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # Organized as state, actions, score triples.
+        roots = [[]] * self.depth
+        roots[0].extend((gameState, [], gameState.getScore()))
+        for d in range(self.depth):
+            for curr in roots[d]:
+                if (not curr) or curr[0].isLose():
+                    roots[d].remove(curr)
+                    continue
+                if(curr[0].isWin()):
+                    return curr[1]
+                roots[d + 1].extend([(curr.generateSuccessor(act), [curr + act], curr.generateSuccessor(act).getScore()) for act in curr.getLegalActions].extend([] * (5 - len(curr.getLegalActions))))
+        for d in range(self.depth):
+            beeg = True if d % gameState.getNumAgents() == 0 else False
+            for i in 5 * range(d + 1):
+                options = [roots[d][l] for l in range(i, i + 5)]
+                record = -float('inf') if beeg else float('inf')
+                for option in options:
+                    pass
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
